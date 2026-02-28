@@ -168,7 +168,8 @@ def to_string(node: Node, parent_prec: int = 0) -> str:
         child = node.children[0]
         s = to_string(child, _precedence(node))
         if child.kind in ("and", "or"):
-            s = f"({s})"
+            if not (s.startswith("(") and s.endswith(")")):
+                s = f"({s})"
         return s + "'"
     op = "+" if node.kind == "or" else ""
     current_prec = _precedence(node)
@@ -179,15 +180,13 @@ def to_string(node: Node, parent_prec: int = 0) -> str:
 
 
 def process_string(expression: str) -> str:
-    """Parse expression and return its DeMorgan-transformed complement.
+    """Parse expression and return a DeMorgan-equivalent expression.
 
-    If the parsed expression is not already top-level negated, we negate it
-    first so inputs like `AB`, `A+B`, and `(AB)` are transformed according to
-    DeMorgan's theorem.
+    We use E = (E')' and push the inner NOT inward via DeMorgan so the
+    returned expression stays equivalent to the original input.
     """
     tree = Parser(expression).parse()
-    if tree.kind != "not":
-        tree = Node("not", (tree,))
-    transformed = apply_demorgan(tree)
+    transformed = apply_demorgan(Node("not", (tree,)))
+    transformed = Node("not", (transformed,))
     simplified = simplify(transformed)
     return to_string(simplified)
